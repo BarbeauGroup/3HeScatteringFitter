@@ -55,8 +55,8 @@ if "208" in sys.argv[1]:
   #Coulomb barrier for the proton: http://hyperphysics.phy-astr.gsu.edu/hbase/NucEne/coubar.html
   #interacting with the final state nucleus
   B_coulomb=14.38
-  #E_xn = neutron emission threshold: Mass (207Bi + n) - (208Bi) + E_thresh
-  E_xn = 6.887+E_thresh
+  #E_xn = neutron emission excitation energy: Mass (207Bi + n) - (208Bi)
+  E_xn = 6.887
 else:
   E_projectile=200
   #Mass (208Bi + 3H) - (Mass 208Pb + 3He) in MeV/c^2
@@ -69,14 +69,14 @@ else:
   #Coulomb barrier for the proton: http://hyperphysics.phy-astr.gsu.edu/hbase/NucEne/coubar.html
   #interacting with the final state nucleus
   B_coulomb=15.2838
-  #E_xn = neutron emission threshold: Mass (207Bi + n) - (208Bi) + E_thresh
-  E_xn = 5.549+E_thresh
+  #E_xn = neutron emission excitation energy: Mass (207Bi + n) - (208Bi)
+  E_xn = 5.549
   
 
 #Definitions
 #E_t = E_shift - eVar
-E_shift=ROOT.RooRealVar("E_shift","E_shift",E_projectile-E_thresh)
-EQF = ROOT.RooRealVar("EQF","EQF",S_p+E_xn+B_coulomb,1*(S_p+E_xn+B_coulomb),1.*(S_p+E_xn+B_coulomb))
+E_shift=ROOT.RooRealVar("E_shift","E_shift",E_gs)
+EQF = ROOT.RooRealVar("EQF","EQF",E_ejectile_free-(S_p+E_xn+B_coulomb))
 E0 = ROOT.RooRealVar("E0","E0",E_gs-S_p)
 T=ROOT.RooRealVar("T","T",100) #Recommeneded value
 W=ROOT.RooRealVar("W","W",22) #Recommended value
