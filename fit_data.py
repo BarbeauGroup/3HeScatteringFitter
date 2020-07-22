@@ -231,14 +231,14 @@ pad1.Draw()
 pad1.cd()
 frame=eVar.frame()
 dataHist.plotOn(frame,ROOT.RooFit.LineColor(ROOT.kBlack),ROOT.RooFit.Binning(nBins),ROOT.RooFit.MarkerSize(0.5))
-model.plotOn(frame,ROOT.RooFit.LineColor(ROOT.kRed))
+model.plotOn(frame,ROOT.RooFit.LineColor(ROOT.kBlack))
 model.plotOn(frame,ROOT.RooFit.Components("qfc"),ROOT.RooFit.LineColor(ROOT.kGray),ROOT.RooFit.Name("qfc"))
 for i in range(0,nLowerPeaks):
   norm=lowerPeakAmplitudes[i].getVal()
   lowerPeakGaussians[i].plotOn(frame,ROOT.RooFit.LineStyle(ROOT.kSolid),ROOT.RooFit.LineColor(ROOT.kBlue),ROOT.RooFit.AddTo("qfc"),ROOT.RooFit.Normalization(norm,ROOT.RooAbsReal.NumEvent))
 for i in range(0,nMidPeaks):
   model.plotOn(frame,ROOT.RooFit.Components("midPeakGauss"+str(i)),ROOT.RooFit.LineStyle(ROOT.kDashed),ROOT.RooFit.LineColor(ROOT.kBlue),ROOT.RooFit.AddTo("qfc"))
-model.plotOn(frame,ROOT.RooFit.Components("iasGauss"),ROOT.RooFit.LineColor(ROOT.kOrange),ROOT.RooFit.AddTo("qfc"))
+model.plotOn(frame,ROOT.RooFit.Components("iasGauss"),ROOT.RooFit.LineColor(ROOT.kRed),ROOT.RooFit.AddTo("qfc"))
 model.plotOn(frame,ROOT.RooFit.Components("gtrGauss"),ROOT.RooFit.LineColor(ROOT.kViolet),ROOT.RooFit.AddTo("qfc"))
 for i in range(0,nUpperPeaks):
   model.plotOn(frame,ROOT.RooFit.Components("upperPeakGauss"+str(i)),ROOT.RooFit.LineStyle(ROOT.kDashed),ROOT.RooFit.LineColor(ROOT.kGreen),ROOT.RooFit.AddTo("qfc"))
@@ -250,13 +250,19 @@ frame.Draw()
 #############
 ##Normalize##
 #############
-A=data["normalization"]["A"]
-Z=data["normalization"]["Z"]
+#Use user-supplied ratio of cross sections at 0-degree or q-min?
 ratio=float(data["normalization"]["ratio"])
 
+#Calculate B(F)
+A=data["normalization"]["A"]
+Z=data["normalization"]["Z"]
 N=A-Z
 BF=N-Z
 BF_amp = iasAmp.getVal()
+
+#Calculate IAS wave number
+kf_ias = math.sqrt(E_projectile-E_thresh-iasMean.getVal())
+
 scaleFactor = BF/(ratio*BF_amp)
 
 sum=0
@@ -266,37 +272,62 @@ scaledAmplitudesList=[]
 scaledAmplitudes=ROOT.RooArgList()
 print("\n\nEnergy B(GT)")
 for i in range(0,nLowerPeaks):
-  scaledAmplitudesList.append(ROOT.RooRealVar("scaledLowerPeakAmp"+str(i),"scaledLowerPeakAmp"+str(i),lowerPeakAmplitudes[i].getVal()*scaleFactor))
+
+  #Wave number for this GT peak
+  kf_gt = math.sqrt(E_projectile-E_thresh-lowerPeakMeans[i].getVal())
+  ratio=kf_ias/kf_gt
+  
+  #Compute B(GT)
+  BGT = lowerPeakAmplitudes[i].getVal()*scaleFactor*ratio
+  
+  #Scale
+  scaledAmplitudesList.append(ROOT.RooRealVar("scaledLowerPeakAmp"+str(i),"scaledLowerPeakAmp"+str(i),BGT))
   scaledAmplitudes.add(scaledAmplitudesList[i])
   scaledPdfList.append(lowerPeakGaussians[i])
   scaledPdfs.add(scaledPdfList[i])
   
-  print("{:.3f}".format(lowerPeakMeans[i].getVal())," {:.3f}".format(lowerPeakAmplitudes[i].getVal()*scaleFactor))
+  print("{:.3f}".format(lowerPeakMeans[i].getVal())," {:.3f}".format(BGT))
   
-  sum+=lowerPeakAmplitudes[i].getVal()*scaleFactor
+  sum+=BGT
 for i in range(0,nMidPeaks):
-  scaledAmplitudesList.append(ROOT.RooRealVar("scaledMidPeakAmp"+str(i),"scaledMidPeakAmp"+str(i),midPeakAmplitudes[i].getVal()*scaleFactor))
+  #Wave number for this GT peak
+  kf_gt = math.sqrt(E_projectile-E_thresh-midPeakMeans[i].getVal())
+  ratio=kf_ias/kf_gt
+  
+  #Compute B(GT)
+  BGT = midPeakAmplitudes[i].getVal()*scaleFactor*ratio
+
+  #Scale
+  scaledAmplitudesList.append(ROOT.RooRealVar("scaledMidPeakAmp"+str(i),"scaledMidPeakAmp"+str(i),BGT))
   scaledAmplitudes.add(scaledAmplitudesList[i+nLowerPeaks])
   scaledPdfList.append(midPeakGaussians[i])
   scaledPdfs.add(scaledPdfList[i+nLowerPeaks])
 
-  print("{:.3f}".format(midPeakMeans[i].getVal())," {:.3f}".format(midPeakAmplitudes[i].getVal()*scaleFactor))
+  print("{:.3f}".format(midPeakMeans[i].getVal())," {:.3f}".format(BGT))
 
-  sum+=midPeakAmplitudes[i].getVal()*scaleFactor
+  sum+=BGT
   
 
-scaledAmplitudesList.append(ROOT.RooRealVar("scaledGtrAmp","scaledGtrAmp",gtrAmp.getVal()*scaleFactor))
+#Wave number for GTR
+kf_gt = math.sqrt(E_projectile-E_thresh-gtrMean.getVal())
+ratio=kf_ias/kf_gt
+
+#Compute B(GT)
+BGT = gtrAmp.getVal()*scaleFactor*ratio
+
+#Scale
+scaledAmplitudesList.append(ROOT.RooRealVar("scaledGtrAmp","scaledGtrAmp",BGT))
 scaledAmplitudes.add(scaledAmplitudesList[-1])
 scaledPdfList.append(gtrGauss)
 scaledPdfs.add(scaledPdfList[-1])
+sum+=BGT
 
 print("{:.3f}".format(iasMean.getVal())+" (IAS)")
-print("{:.3f}".format(gtrMean.getVal())," {:.3f}".format(gtrAmp.getVal()*scaleFactor))
+print("{:.3f}".format(gtrMean.getVal())," {:.3f}".format(BGT))
 
 for i in range(0,nUpperPeaks):
   print("{:.3f}".format(upperPeakMeans[i].getVal())+" (non L=0)")
 
-sum+=gtrAmp.getVal()*scaleFactor
 print("\n\nTotal B(GT) strength: "+str(sum)+"\n")
 
 #######################
